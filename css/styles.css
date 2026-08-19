@@ -147,6 +147,13 @@ body { padding-bottom: 96px; }
   cursor: pointer;
 }
 .menu button:hover { background: var(--brand-tint); }
+.menu-version {
+  margin: 4px 0 0;
+  padding: 6px 12px 2px;
+  border-top: 1px solid var(--line);
+  font-size: .72rem;
+  color: var(--text-soft);
+}
 .menu button.danger { color: var(--danger); }
 .menu button.danger:hover { background: var(--danger-bg); }
 

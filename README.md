@@ -86,8 +86,8 @@ deploy with GitHub Actions (**Settings ▸ Pages ▸ Source: GitHub Actions**).
 
 ## Running it locally
 
-A service worker needs a real `http://` origin, so open it through a server rather than
-double-clicking the file:
+Open it through a server rather than double-clicking the file — browsers block `localStorage`
+on `file://` pages, so nothing would save. VS Code's **Live Server** extension works, or:
 
 ```bash
 node serve.js
@@ -95,6 +95,27 @@ node serve.js
 
 Then visit `http://localhost:5177`. On iOS use Safari's **Share ▸ Add to Home Screen**; on
 Android and desktop Chrome use the install prompt or **More ▸ Install app**.
+
+### Nothing is cached while developing
+
+The service worker is **disabled on development hosts** — `localhost`, `127.0.0.1`, any
+`*.local` name, private LAN addresses (`192.168.x`, `10.x`, `172.16–31.x`), and `file://`.
+A worker sitting in front of Live Server would keep serving an older `app.js` and silently
+undo your edits, so on those hosts the app skips registration entirely and every request goes
+straight to the network. Save a file, reload, and you see the change.
+
+It also cleans up after itself: if a worker from an earlier session is still registered on a
+dev host, the app unregisters it, deletes its caches, and reloads once. The worker carries the
+same guard, so even a stale registration tears itself down instead of serving cached files.
+Console on startup tells you which mode you are in:
+
+```
+CCPD Home Treatment Record v4 (http://127.0.0.1:5500, development - no caching)
+```
+
+**More ▸ Version** shows the same thing in the UI (`v4 - dev, caching off`). Offline caching
+still switches on normally once the app is served from a real domain such as GitHub Pages,
+where app code is fetched network-first so a new deploy always wins.
 
 ## Files
 

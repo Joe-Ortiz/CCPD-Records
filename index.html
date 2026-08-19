@@ -35,6 +35,7 @@
     <button type="button" role="menuitem" data-action="import">Import backup (JSON)</button>
     <button type="button" role="menuitem" data-action="install" hidden id="menuInstall">Install app</button>
     <button type="button" role="menuitem" data-action="wipe" class="danger">Erase all data</button>
+    <p class="menu-version" id="menuVersion"></p>
   </div>
 </header>
 
@@ -211,11 +212,12 @@
       <h2 id="patientTitle">Patient Label</h2>
       <button class="icon-btn" type="button" data-close aria-label="Close">&times;</button>
     </header>
-    <form id="patientForm" class="sheet-body">
-      <label class="field"><span>First name</span><input type="text" name="first" autocomplete="given-name" required></label>
-      <label class="field"><span>Last name</span><input type="text" name="last" autocomplete="family-name" required></label>
-      <label class="field"><span>Date of birth</span><input type="date" name="dob" required></label>
+    <form id="patientForm" class="sheet-body" novalidate>
+      <label class="field"><span>First name</span><input type="text" name="first" autocomplete="given-name"></label>
+      <label class="field"><span>Last name</span><input type="text" name="last" autocomplete="family-name"></label>
+      <label class="field"><span>Date of birth</span><input type="date" name="dob"></label>
       <p class="hint">Stored only on this device, in this browser.</p>
+      <p id="patientError" class="form-error" hidden role="alert"></p>
     </form>
     <footer class="sheet-foot">
       <div class="spacer"></div>

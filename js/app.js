@@ -7,9 +7,12 @@
 (function () {
   'use strict';
 
+  var APP_VERSION = 'v4';      /* shown in the More menu, to identify a build */
+
   var KEY_PATIENT = 'ccpd.patient.v1';
   var KEY_ENTRIES = 'ccpd.entries.v1';
   var KEY_VIEW    = 'ccpd.view.v1';
+  var KEY_SW_CLEARED = 'ccpd.swCleared';   /* session flag, guards a one-time reload */
 
   var BP_THRESHOLD = 130;          /* systolic at/above this -> 2.5% */
 
@@ -475,6 +478,39 @@
   }
 
   /* ============================================================
+     Patient label
+     ============================================================ */
+
+  function openPatient() {
+    var f = $('#patientForm');
+    f.elements.first.value = state.patient.first || '';
+    f.elements.last.value = state.patient.last || '';
+    f.elements.dob.value = state.patient.dob || '';
+    $('#patientError').hidden = true;
+    showModal($('#patientModal'));
+  }
+
+  function savePatient() {
+    var f = $('#patientForm');
+    var first = f.elements.first.value.trim();
+    var last = f.elements.last.value.trim();
+    var err = $('#patientError');
+
+    if (!first || !last) {
+      err.textContent = 'Enter both a first and last name, or close this without saving.';
+      err.hidden = false;
+      (first ? f.elements.last : f.elements.first).focus();
+      return;
+    }
+    err.hidden = true;
+    state.patient = { first: first, last: last, dob: f.elements.dob.value };
+    store.write(KEY_PATIENT, state.patient);
+    closeModal($('#patientModal'));
+    render();
+    toast('Patient label saved.');
+  }
+
+  /* ============================================================
      Modals & toast
      ============================================================ */
 
@@ -698,8 +734,10 @@
         closeModal(m);
       });
     });
-    $$('.modal').forEach(function (m) {
-      m.addEventListener('click', function (e) { if (e.target === m) { /* keep sheet open on backdrop tap */ } });
+    /* Tapping the backdrop closes the patient sheet; the entry sheet stays put
+       so a half-filled treatment is never lost to a stray tap. */
+    $('#patientModal').addEventListener('click', function (e) {
+      if (e.target === this) closeModal(this);
     });
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
@@ -711,23 +749,13 @@
     });
 
     /* patient */
-    $('#patientChip').addEventListener('click', function () {
-      var f = $('#patientForm');
-      f.elements.first.value = state.patient.first || '';
-      f.elements.last.value = state.patient.last || '';
-      f.elements.dob.value = state.patient.dob || '';
-      showModal($('#patientModal'));
-    });
-    $('#btnPatientSave').addEventListener('click', function () {
-      var f = $('#patientForm');
-      var first = f.elements.first.value.trim();
-      var last = f.elements.last.value.trim();
-      if (!first || !last) { toast('First and last name are required.'); return; }
-      state.patient = { first: first, last: last, dob: f.elements.dob.value };
-      store.write(KEY_PATIENT, state.patient);
-      closeModal($('#patientModal'));
-      render();
-      toast('Patient label saved.');
+    $('#patientChip').addEventListener('click', openPatient);
+    $('#btnPatientSave').addEventListener('click', savePatient);
+    /* Enter inside the form saves it - without this the browser submits the
+       form for real, reloading the page and losing what was typed. */
+    $('#patientForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      savePatient();
     });
 
     /* share + menu */
@@ -780,16 +808,110 @@
     });
   }
 
+  /* ---------- offline support (production only) ---------- */
+
+  /** Live Server, `node serve.js`, a phone on the LAN, or a file:// page. */
+  function isDevHost() {
+    var h = location.hostname;
+    return location.protocol === 'file:' ||
+           h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '[::1]' ||
+           /\.local$/i.test(h) ||
+           /^192\.168\./.test(h) ||
+           /^10\./.test(h) ||
+           /^172\.(1[6-9]|2\d|3[01])\./.test(h);
+  }
+
+  /** Unregister any service worker and drop its caches, then reload once if a
+      stale worker was still controlling this page. */
+  function clearOfflineCaches(tag) {
+    var jobs = [];
+
+    if ('serviceWorker' in navigator) {
+      jobs.push(
+        navigator.serviceWorker.getRegistrations()
+          .then(function (regs) {
+            if (regs.length) console.log(tag + ' removing ' + regs.length + ' service worker(s)');
+            return Promise.all(regs.map(function (r) { return r.unregister(); }));
+          })
+          .catch(function () {})
+      );
+    }
+    if (window.caches && caches.keys) {
+      jobs.push(
+        caches.keys()
+          .then(function (keys) {
+            if (keys.length) console.log(tag + ' clearing caches: ' + keys.join(', '));
+            return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          })
+          .catch(function () {})
+      );
+    }
+
+    return Promise.all(jobs).then(function () {
+      var controlled = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
+      var alreadyReloaded;
+      try { alreadyReloaded = sessionStorage.getItem(KEY_SW_CLEARED); } catch (err) { alreadyReloaded = '1'; }
+      if (controlled && !alreadyReloaded) {
+        try { sessionStorage.setItem(KEY_SW_CLEARED, '1'); } catch (err) {}
+        console.log(tag + ' a stale worker was in control - reloading once for fresh files');
+        location.reload();
+      }
+    });
+  }
+
   /* ---------- boot ---------- */
   function init() {
     bind();
     render();
+    $('#menuVersion').textContent = 'Version ' + APP_VERSION +
+      (isDevHost() ? ' - dev, caching off' : '');
     if (!state.patient.first && !state.patient.last) {
-      setTimeout(function () { $('#patientChip').click(); }, 400);
+      setTimeout(function () {
+        if (!state.patient.first && !state.patient.last) openPatient();
+      }, 400);
     }
+    console.log('CCPD Home Treatment Record ' + APP_VERSION +
+                ' (' + location.protocol + '//' + location.host + ', ' +
+                (isDevHost() ? 'development - no caching' : 'production') + ')');
+
+    if (location.protocol === 'file:') {
+      toast('Open this through a web address, not the file itself - saving is blocked on file:// pages.');
+    }
+
+    /* Nothing is cached while developing: a service worker sitting in front of
+       Live Server would keep serving yesterday's app.js and quietly undo edits.
+       Any worker left over from an earlier run is removed here too. */
+    if (isDevHost()) {
+      clearOfflineCaches('[dev]');
+      return;
+    }
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').catch(function () { /* offline support is optional */ });
+        /* updateViaCache:'none' keeps the browser's HTTP cache from pinning an
+           old sw.js, so a new deploy is actually noticed. */
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+          .then(function (reg) {
+            reg.update();
+            /* A newer worker means newer code: take it and reload once. */
+            reg.addEventListener('updatefound', function () {
+              var sw = reg.installing;
+              if (!sw) return;
+              sw.addEventListener('statechange', function () {
+                if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                  sw.postMessage('skip-waiting');
+                }
+              });
+            });
+          })
+          .catch(function () { /* offline support is optional */ });
+
+        var reloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (reloaded) return;
+          reloaded = true;
+          location.reload();
+        });
       });
     }
   }
