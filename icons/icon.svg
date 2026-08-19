@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="CCPD treatment log">
+  <rect width="512" height="512" rx="112" fill="#0b5c7a"/>
+  <path d="M256 92c58 74 90 122 90 158a90 90 0 1 1-180 0c0-36 32-84 90-158z" fill="#ffffff"/>
+  <rect x="140" y="404" width="232" height="18" rx="9" fill="#ffffff" opacity="0.85"/>
+  <rect x="140" y="440" width="160" height="18" rx="9" fill="#ffffff" opacity="0.55"/>
+</svg>

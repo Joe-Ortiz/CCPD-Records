@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b5c7a">
+<meta name="description" content="CCPD Home Treatment Record - peritoneal dialysis home program daily log.">
+<title>CCPD Home Treatment Record</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CCPD Log">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="app-bar">
+  <div class="app-bar-main">
+    <h1>CCPD Home Treatment Record</h1>
+    <button id="patientChip" class="patient-chip" type="button" aria-label="Edit patient information">
+      <span id="patientChipName">Set patient</span>
+    </button>
+  </div>
+  <div class="app-bar-actions">
+    <button id="btnShare" class="btn btn-ghost" type="button">Share PDF</button>
+    <button id="btnMenu" class="btn btn-ghost" type="button" aria-haspopup="true" aria-expanded="false">More</button>
+  </div>
+  <div id="menu" class="menu" hidden role="menu">
+    <button type="button" role="menuitem" data-action="shareMonth">Share selected period (PDF)</button>
+    <button type="button" role="menuitem" data-action="print">Print / Save as PDF</button>
+    <button type="button" role="menuitem" data-action="export">Export backup (JSON)</button>
+    <button type="button" role="menuitem" data-action="import">Import backup (JSON)</button>
+    <button type="button" role="menuitem" data-action="install" hidden id="menuInstall">Install app</button>
+    <button type="button" role="menuitem" data-action="wipe" class="danger">Erase all data</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="toolbar" aria-label="Record period">
+    <label class="field inline">
+      <span>Month</span>
+      <select id="filterMonth"></select>
+    </label>
+    <label class="field inline">
+      <span>Year</span>
+      <select id="filterYear"></select>
+    </label>
+    <div class="spacer"></div>
+    <div class="view-toggle" role="group" aria-label="View">
+      <button type="button" class="is-active" data-view="cards">Cards</button>
+      <button type="button" data-view="table">Table</button>
+    </div>
+  </section>
+
+  <section id="summary" class="summary" aria-live="polite"></section>
+
+  <section id="cardsView" class="cards" aria-label="Treatment entries"></section>
+
+  <section id="tableView" class="table-wrap" hidden aria-label="Treatment record table">
+    <table class="log">
+      <thead>
+        <tr>
+          <th>Date</th><th>Time</th><th>Pre Wt<br><small>(Kg)</small></th><th>Pre HR</th>
+          <th>Pre BP</th><th>Pre Temp</th><th>% Dextrose</th><th>Initial Drain</th>
+          <th>Effluent Clear?</th><th>Total UF</th><th>Avg Dwell</th><th>Lost Dwell</th>
+          <th>Post HR</th><th>Post BP</th><th>Post Wt<br><small>(Kg)</small></th><th>Comments</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </section>
+
+</main>
+
+<button id="btnNew" class="fab" type="button" aria-label="New treatment entry">
+  <span aria-hidden="true">+</span>
+</button>
+
+<!-- ============ Entry wizard ============ -->
+<div id="entryModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="entryTitle">
+  <div class="sheet">
+    <header class="sheet-head">
+      <h2 id="entryTitle">New Treatment</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Close">&times;</button>
+    </header>
+
+    <ol class="steps" id="steps">
+      <li data-step="1"><span class="dot">1</span> Pre-Dialysis</li>
+      <li data-step="2"><span class="dot">2</span> Dextrose &amp; Drain</li>
+      <li data-step="3"><span class="dot">3</span> Post-Dialysis</li>
+    </ol>
+
+    <form id="entryForm" class="sheet-body" novalidate>
+
+      <!-- Phase 1 -->
+      <fieldset class="phase" data-phase="1">
+        <legend>Phase 1 &middot; Pre-Dialysis</legend>
+        <div class="grid">
+          <label class="field"><span>Date</span><input type="date" name="date" required></label>
+          <label class="field"><span>Time</span><input type="time" name="time" required></label>
+          <label class="field"><span>Pre Dialysis Wt (Kg)</span>
+            <input type="number" name="preWt" step="0.1" min="0" max="400" inputmode="decimal" placeholder="e.g. 72.4"></label>
+          <label class="field"><span>Pre Dialysis HR</span>
+            <input type="number" name="preHR" min="20" max="250" inputmode="numeric" placeholder="bpm"></label>
+          <div class="field bp">
+            <span>Pre Dialysis BP</span>
+            <div class="bp-inputs">
+              <input type="number" name="preSys" min="50" max="300" inputmode="numeric" placeholder="Sys" aria-label="Pre dialysis systolic">
+              <em>/</em>
+              <input type="number" name="preDia" min="20" max="200" inputmode="numeric" placeholder="Dia" aria-label="Pre dialysis diastolic">
+            </div>
+          </div>
+          <label class="field"><span>Pre Dialysis Temp</span>
+            <input type="number" name="preTemp" step="0.1" inputmode="decimal" placeholder="&deg;F"></label>
+        </div>
+        <p class="hint" id="bpHint"></p>
+      </fieldset>
+
+      <!-- Phase 2 -->
+      <fieldset class="phase" data-phase="2">
+        <legend>Phase 2 &middot; Dextrose &amp; Initial Drain</legend>
+
+        <div class="field">
+          <span>% Dextrose Concentration</span>
+          <p class="hint" id="autoPickNote">Auto-selected from pre-dialysis blood pressure.</p>
+          <div class="dex-group" role="radiogroup" aria-label="Dextrose concentration">
+            <label class="dex dex-15">
+              <input type="radio" name="dextrose" value="1.5">
+              <span class="dex-face"><b>1.5%</b><small>BP under 130</small></span>
+            </label>
+            <label class="dex dex-25">
+              <input type="radio" name="dextrose" value="2.5">
+              <span class="dex-face"><b>2.5%</b><small>BP 130 or higher</small></span>
+            </label>
+            <label class="dex dex-ico">
+              <input type="radio" name="dextrose" value="ICO">
+              <span class="dex-face"><b>ICO</b><small>Hospital ASAP</small></span>
+            </label>
+          </div>
+          <div id="icoAlert" class="alert alert-ico" hidden role="alert">
+            <strong>ICO selected &mdash; patient needs a hospital ASAP.</strong>
+            Contact the clinic / on-call nurse and arrange transport now.
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Initial Drain</span>
+          <input type="number" name="initialDrain" step="1" inputmode="numeric" placeholder="mL">
+          <small class="hint">Entering the initial drain unlocks Phase 3.</small>
+        </label>
+      </fieldset>
+
+      <!-- Phase 3 -->
+      <fieldset class="phase" data-phase="3">
+        <legend>Phase 3 &middot; Post-Dialysis</legend>
+        <div id="lockNote" class="alert alert-lock">
+          Locked &mdash; enter an <strong>Initial Drain</strong> in Phase 2 to unlock these fields.
+        </div>
+        <div class="grid" id="phase3Grid">
+          <div class="field">
+            <span>Is Effluent Clear?</span>
+            <div class="yn" role="radiogroup" aria-label="Is effluent clear">
+              <label class="yn-opt yes"><input type="radio" name="effluentClear" value="Y"><span>Yes</span></label>
+              <label class="yn-opt no"><input type="radio" name="effluentClear" value="N"><span>No</span></label>
+            </div>
+          </div>
+          <label class="field"><span>Total UF</span>
+            <input type="number" name="totalUF" step="1" inputmode="numeric" placeholder="mL"></label>
+          <label class="field"><span>Avg Dwell Time</span>
+            <input type="text" name="avgDwell" inputmode="decimal" placeholder="e.g. 1:30"></label>
+          <label class="field"><span>Lost Dwell Time</span>
+            <input type="text" name="lostDwell" inputmode="decimal" placeholder="e.g. 0:15"></label>
+          <label class="field"><span>Post Dialysis HR</span>
+            <input type="number" name="postHR" min="20" max="250" inputmode="numeric" placeholder="bpm"></label>
+          <div class="field bp">
+            <span>Post Dialysis BP</span>
+            <div class="bp-inputs">
+              <input type="number" name="postSys" min="50" max="300" inputmode="numeric" placeholder="Sys" aria-label="Post dialysis systolic">
+              <em>/</em>
+              <input type="number" name="postDia" min="20" max="200" inputmode="numeric" placeholder="Dia" aria-label="Post dialysis diastolic">
+            </div>
+          </div>
+          <label class="field"><span>Post Dialysis Wt (Kg)</span>
+            <input type="number" name="postWt" step="0.1" min="0" max="400" inputmode="decimal" placeholder="Kg"></label>
+          <label class="field wide"><span>Comments</span>
+            <textarea name="comments" rows="2" placeholder="Notes, alarms, symptoms..."></textarea></label>
+        </div>
+      </fieldset>
+
+      <p id="formError" class="form-error" hidden role="alert"></p>
+    </form>
+
+    <footer class="sheet-foot">
+      <button type="button" id="btnDelete" class="btn btn-danger" hidden>Delete</button>
+      <div class="spacer"></div>
+      <button type="button" id="btnBack" class="btn btn-ghost">Back</button>
+      <button type="button" id="btnNext" class="btn btn-primary">Next</button>
+      <button type="button" id="btnSave" class="btn btn-primary" hidden>Save</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ============ Patient modal ============ -->
+<div id="patientModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="patientTitle">
+  <div class="sheet sheet-sm">
+    <header class="sheet-head">
+      <h2 id="patientTitle">Patient Label</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Close">&times;</button>
+    </header>
+    <form id="patientForm" class="sheet-body">
+      <label class="field"><span>First name</span><input type="text" name="first" autocomplete="given-name" required></label>
+      <label class="field"><span>Last name</span><input type="text" name="last" autocomplete="family-name" required></label>
+      <label class="field"><span>Date of birth</span><input type="date" name="dob" required></label>
+      <p class="hint">Stored only on this device, in this browser.</p>
+    </form>
+    <footer class="sheet-foot">
+      <div class="spacer"></div>
+      <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+      <button type="button" id="btnPatientSave" class="btn btn-primary">Save</button>
+    </footer>
+  </div>
+</div>
+
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+<script src="js/pdf.js"></script>
+<script src="js/record-pdf.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ccpd-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["serve.js", "5177"],
+      "port": 5177
+    }
+  ]
+}
