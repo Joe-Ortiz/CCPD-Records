@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = 'v4';      /* shown in the More menu, to identify a build */
+  var APP_VERSION = 'v6';      /* shown in the More menu, to identify a build */
 
   var KEY_PATIENT = 'ccpd.patient.v1';
   var KEY_ENTRIES = 'ccpd.entries.v1';
@@ -274,6 +274,7 @@
     var rows = filtered();
     renderSummary(rows);
     var cards = state.view === 'cards';
+    document.body.dataset.view = state.view;   /* lets the CSS widen table view */
     $('#cardsView').hidden = !cards;
     $('#tableView').hidden = cards;
     $$('.view-toggle button').forEach(function (b) {
@@ -331,6 +332,7 @@
     state.editingId = existing ? id : null;
     state.draft = existing ? Object.assign(blankEntry(), existing) : blankEntry();
     state.dirty = false;
+    $('#discardBar').hidden = true;
     $('#entryTitle').textContent = existing ? 'Edit Treatment' : 'New Treatment';
     $('#btnDelete').hidden = !existing;
     fillForm(state.draft);
@@ -516,6 +518,17 @@
 
   var lastFocus = null;
 
+  /** Close a sheet, asking inline first if a treatment has unsaved edits. */
+  function requestClose(m) {
+    if (m.id === 'entryModal' && state.dirty) {
+      $('#discardBar').hidden = false;
+      $('#btnKeepEditing').focus();
+      return;
+    }
+    state.dirty = false;
+    closeModal(m);
+  }
+
   function showModal(m) {
     lastFocus = document.activeElement;
     m.hidden = false;
@@ -525,6 +538,7 @@
   }
   function closeModal(m) {
     m.hidden = true;
+    $('#discardBar').hidden = true;
     document.body.style.overflow = '';
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
@@ -726,13 +740,15 @@
 
     /* modals */
     $$('[data-close]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var m = b.closest('.modal');
-        if (m.id === 'entryModal' && state.dirty &&
-            !confirm('Discard the changes to this treatment?')) return;
-        state.dirty = false;
-        closeModal(m);
-      });
+      b.addEventListener('click', function () { requestClose(b.closest('.modal')); });
+    });
+    $('#btnKeepEditing').addEventListener('click', function () {
+      $('#discardBar').hidden = true;
+    });
+    $('#btnDiscard').addEventListener('click', function () {
+      $('#discardBar').hidden = true;
+      state.dirty = false;
+      closeModal($('#entryModal'));
     });
     /* Tapping the backdrop closes the patient sheet; the entry sheet stays put
        so a half-filled treatment is never lost to a stray tap. */
@@ -743,9 +759,7 @@
       if (e.key !== 'Escape') return;
       var open = $$('.modal').filter(function (m) { return !m.hidden; })[0];
       if (!open) { $('#menu').hidden = true; return; }
-      if (open.id === 'entryModal' && state.dirty && !confirm('Discard the changes to this treatment?')) return;
-      state.dirty = false;
-      closeModal(open);
+      requestClose(open);
     });
 
     /* patient */

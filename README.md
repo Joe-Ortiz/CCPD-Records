@@ -56,7 +56,8 @@ a nurse signature line, and blank ruled rows so a partly-filled sheet can still 
 
 ### Also in the app
 
-- Card view (phone-friendly) and full-grid table view
+- Card view (phone-friendly) and full-grid table view — on a desktop the table drops the
+  reading-width cap and fills the window, with the column headers pinned while the grid scrolls
 - Month / year filter and a small summary strip (treatments, completed, average total UF, cloudy effluent, ICO days)
 - **Print / Save as PDF** — prints the grid through the browser, as a fallback
 - JSON backup export / import, and an erase-everything option
