@@ -32,6 +32,11 @@
 
 * { box-sizing: border-box; }
 
+/* The UA rule for [hidden] is `display: none` at almost no specificity, so any
+   class rule that sets display (.modal, .menu, .cards) silently outranks it and
+   the element stays on screen after hidden = true. Settle it once, here. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -297,13 +302,42 @@ input:disabled, textarea:disabled, select:disabled {
 }
 
 /* ---------- Table view ---------- */
+/* Table view drops the reading-width cap: the grid is 16 columns wide and any
+   space left over on a desktop monitor is better spent on the table than on
+   margins. Cards keep the narrower measure. */
+body[data-view="table"] .wrap { max-width: none; }
+
 .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 table.log { border-collapse: collapse; width: 100%; min-width: 1180px; font-size: .8rem; }
 table.log th, table.log td { border: 1px solid var(--line); padding: 6px 8px; text-align: center; vertical-align: middle; }
-table.log th { background: #eef2f5; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--text-soft); position: sticky; top: 0; }
+table.log th { background: #eef2f5; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--text-soft); position: sticky; top: 0; z-index: 2; }
 table.log th small { font-weight: 400; text-transform: none; }
 table.log tbody tr:hover { background: var(--brand-tint); cursor: pointer; }
-table.log td.c-comment { text-align: left; max-width: 220px; }
+/* Comments soak up whatever width is left instead of being capped. */
+table.log td.c-comment { text-align: left; min-width: 190px; }
+
+/* On a roomy screen the grid fills whatever height is left below the toolbar
+   and scrolls internally, so the column headers stay put and the page itself
+   does not scroll. Measured by the layout rather than a guessed offset, so it
+   survives the summary strip appearing or the toolbar wrapping. */
+@media (min-width: 900px) and (min-height: 620px) {
+  body[data-view="table"] {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;        /* an exact height, so flex has something to divide */
+    overflow: hidden;     /* the grid scrolls, the page does not */
+  }
+  body[data-view="table"] .wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  body[data-view="table"] .table-wrap {
+    flex: 1;
+    min-height: 0;        /* lets the grid shrink instead of overflowing */
+  }
+}
 td.dex-cell { font-weight: 700; }
 td.dex-cell.d15  { background: var(--dex15-bg);  color: #7a6200; }
 td.dex-cell.d25  { background: var(--dex25-bg);  color: #10603a; }
@@ -366,6 +400,22 @@ td.dex-cell.dico { background: var(--dexico-bg); color: #4c2379; }
   background: var(--surface);
   border-top: 1px solid var(--line);
 }
+
+/* ---------- Discard confirmation ---------- */
+/* An inline bar rather than confirm(): a browser that suppresses dialogs makes
+   confirm() return false forever, which would trap the sheet open. */
+.discard-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--warn-bg);
+  border-top: 1px solid #e6b800;
+  color: #6b5200;
+  font-size: .9rem;
+}
+.discard-bar span { flex: 1; min-width: 170px; font-weight: 600; }
 
 /* ---------- Steps ---------- */
 .steps {
